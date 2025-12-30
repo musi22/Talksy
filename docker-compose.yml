@@ -1,0 +1,127 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: pass
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - chat_network
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chat_network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - chat_network
+
+  user-service:
+    build:
+      context: ./backend/user
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://admin:pass@mongodb:27017/user_db?authSource=admin
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret
+      Rabbitmq_Host: rabbitmq
+      Rabbitmq_Username: guest
+      Rabbitmq_Password: guest
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    networks:
+      - chat_network
+
+  chat-service:
+    build:
+      context: ./backend/chat
+      dockerfile: Dockerfile
+    container_name: chat-service
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      MONGO_URI: mongodb://admin:pass@mongodb:27017/chat_db?authSource=admin
+      JWT_SECRET: dev_jwt_secret
+      Cloud_Name: your_cloudinary_cloud_name
+      Api_Key: your_cloudinary_api_key
+      Api_Secret: your_cloudinary_api_secret
+      USER_SERVICE: http://user-service:4000
+    depends_on:
+      - mongodb
+      - user-service
+    networks:
+      - chat_network
+
+  mail-service:
+    build:
+      context: ./backend/mail
+      dockerfile: Dockerfile
+    container_name: mail-service
+    restart: unless-stopped
+    ports:
+      - "6000:6000"
+    environment:
+      PORT: 6000
+      Rabbitmq_Host: rabbitmq
+      Rabbitmq_Username: guest
+      Rabbitmq_Password: guest
+      USER: your_email@example.com
+      PASSWORD: your_email_password
+    depends_on:
+      - rabbitmq
+    networks:
+      - chat_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - user-service
+      - chat-service
+    networks:
+      - chat_network
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  chat_network:
+    driver: bridge
