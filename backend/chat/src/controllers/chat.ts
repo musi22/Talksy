@@ -168,8 +168,13 @@ export const sendMessage = TryCatch(async (req: AuthenticatedRequest, res) => {
   };
 
   if (imageFile) {
+    const isLocal = !imageFile.path.startsWith("http");
+    const url = isLocal 
+      ? `http://localhost:5000/uploads/${imageFile.filename}`
+      : imageFile.path;
+
     messageData.image = {
-      url: imageFile.path,
+      url: url,
       publicId: imageFile.filename,
     };
     messageData.messageType = "image";

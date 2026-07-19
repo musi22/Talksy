@@ -16,13 +16,27 @@ export const connectRabbitMQ = async () => {
 
     console.log("✅ connected to rabbitmq");
   } catch (error) {
-    console.log("Failed to connect to rabbitmq", error);
+    console.log("Failed to connect to rabbitmq, using HTTP mock callback");
   }
 };
 
 export const publishToQueue = async (queueName: string, message: any) => {
   if (!channel) {
-    console.log("Rabbitmq channel is not initalized");
+    console.log("⚠️ RabbitMQ channel is not initialized. Sending via local HTTP mock...");
+    try {
+      const response = await fetch("http://127.0.0.1:6001/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(message),
+      });
+      if (response.ok) {
+        console.log("✅ Forwarded OTP message to mail service via HTTP");
+      } else {
+        console.log("Failed to send OTP via mail service HTTP:", response.statusText);
+      }
+    } catch (e: any) {
+      console.log("Error forwarding message via HTTP:", e.message);
+    }
     return;
   }
 

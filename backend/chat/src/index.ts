@@ -13,6 +13,8 @@ app.use(express.json());
 
 app.use(cors());
 
+app.use("/uploads", express.static("uploads"));
+
 app.use("/api/v1", chatRoutes);
 
 const port = process.env.PORT;
